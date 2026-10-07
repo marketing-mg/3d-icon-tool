@@ -9,11 +9,20 @@ export type Aspect = '1:1' | '3:2' | '16:9' | 'custom';
 export interface State {
   icon: { name: string; weight: Weight };
   geometry: {
+    mode: 'solid' | 'engrave' | 'emboss' | 'outline';
     depth: number;
     bevelSize: number;
     bevelThickness: number;
     bevelSegments: number;
     curveSegments: number;
+    /** Tile modes. Tile spans [-1, 1]; glyphScale is the glyph's size within it. */
+    glyphScale: number;
+    cornerRadius: number;
+    slabDepth: number;
+    slabBevel: number;
+    engraveDepth: number;
+    embossHeight: number;
+    wallThickness: number;
   };
   camera: { yaw: number; pitch: number; roll: number; perspective: number; locked: boolean };
   material: { preset: string; tint: string; roughness: number; clearcoat: number; anisotropy: number };

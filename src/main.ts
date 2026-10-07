@@ -1,7 +1,7 @@
 import './style.css';
 import { decodeHash, encodeHash, onChange, parseSettings, replaceState, state, touch, type State } from './state';
 import { Stage } from './scene/renderer';
-import { buildSolid } from './geometry/solid';
+import { buildGeometry } from './geometry';
 import { parseSvg, type Glyph } from './geometry/svgToShapes';
 import { loadSvg, pushRecent, type IconRef } from './icons/phosphor';
 import { buildPanel } from './ui/panel';
@@ -35,7 +35,7 @@ async function loadIcon() {
     warn.hidden = !g.hasStrokes;
     warn.textContent = g.hasStrokes ? 'This SVG uses strokes. Only filled shapes are extruded for now.' : '';
     pushRecent(ref);
-    rebuildGeometry();
+    rebuildGeometry(true);
     syncPanel(new Set(['icon']));
   } catch (e) {
     if (req !== iconRequest) return;
@@ -44,10 +44,18 @@ async function loadIcon() {
   }
 }
 
-function rebuildGeometry() {
+let rebuildTimer = 0;
+/** CSG engraving takes tens of ms, so debounce it while sliders drag; other modes rebuild immediately. */
+function rebuildGeometry(immediate = false) {
+  clearTimeout(rebuildTimer);
+  if (!immediate && state.geometry.mode === 'engrave') {
+    rebuildTimer = window.setTimeout(() => rebuildGeometry(true), 150);
+    return;
+  }
   if (!glyph) return;
+  const next = buildGeometry(glyph, state.geometry);
   stage.mesh.geometry.dispose();
-  stage.mesh.geometry = buildSolid(glyph, state.geometry);
+  stage.mesh.geometry = next;
 }
 
 /** Letterbox the canvas to the export aspect so the preview frame matches the PNG. */
@@ -80,7 +88,7 @@ const syncPanel = buildPanel(document.querySelector<HTMLElement>('#panel')!, {
       for (const [i, ref] of items.entries()) {
         progress(i);
         const g = await loadGlyph(ref);
-        stage.mesh.geometry = buildSolid(g, state.geometry);
+        stage.mesh.geometry = buildGeometry(g, state.geometry);
         files.push({ name: pngName(ref.name, ref.weight, state), blob: await stage.snapshot(w, h, grainScale) });
         stage.mesh.geometry.dispose();
       }

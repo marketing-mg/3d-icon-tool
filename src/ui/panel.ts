@@ -3,6 +3,7 @@ import { cameraPresets } from '../scene/camera';
 import { lightingPresets } from '../scene/environment';
 import { materialPresets } from '../scene/materials';
 import { sampleIcons, type IconRef } from '../icons/phosphor';
+import { modes } from '../geometry';
 import { buttons, checkbox, color, el, group, refreshControls, select, slider } from './controls';
 import { buildPicker } from './picker';
 
@@ -71,6 +72,29 @@ export function buildPanel(root: HTMLElement, actions: PanelActions) {
 
   const picker = buildPicker({ onBatchToggle: toggleBatch });
 
+  // --- Geometry: each mode shows only the sliders it uses ---
+  const geo = {
+    depth: slider('geometry', 'depth', 'Depth', 0.02, 1.5, 0.01),
+    slabDepth: slider('geometry', 'slabDepth', 'Tile depth', 0.1, 1.5, 0.01),
+    glyphScale: slider('geometry', 'glyphScale', 'Glyph scale', 0.2, 1, 0.01),
+    cornerRadius: slider('geometry', 'cornerRadius', 'Corner radius', 0, 1, 0.01),
+    slabBevel: slider('geometry', 'slabBevel', 'Tile bevel', 0, 0.1, 0.001),
+    wallThickness: slider('geometry', 'wallThickness', 'Wall thickness', 0.03, 0.4, 0.005),
+    engraveDepth: slider('geometry', 'engraveDepth', 'Engrave depth', 0.01, 0.3, 0.005),
+    embossHeight: slider('geometry', 'embossHeight', 'Emboss height', 0.01, 0.3, 0.005),
+  };
+  const visibleIn: Record<keyof typeof geo, string[]> = {
+    depth: ['solid'],
+    slabDepth: ['engrave', 'emboss', 'outline'],
+    glyphScale: ['engrave', 'emboss', 'outline'],
+    cornerRadius: ['engrave', 'emboss', 'outline'],
+    slabBevel: ['engrave', 'emboss', 'outline'],
+    wallThickness: ['outline'],
+    engraveDepth: ['engrave'],
+    embossHeight: ['emboss'],
+  };
+  const modeHint = el('p', { class: 'hint' });
+
   // --- Camera ---
   const cameraSliders = el(
     'div',
@@ -116,7 +140,22 @@ export function buildPanel(root: HTMLElement, actions: PanelActions) {
     group('Icon', picker.root, el('p', { class: 'warn', id: 'icon-warning', hidden: true })),
     group(
       'Geometry',
-      slider('geometry', 'depth', 'Depth', 0.02, 1.5, 0.01),
+      select(
+        'geometry',
+        'mode',
+        'Mode',
+        modes.map((m) => [m.key, m.label]),
+      ),
+      modeHint,
+      geo.depth,
+      geo.slabDepth,
+      geo.glyphScale,
+      geo.cornerRadius,
+      geo.slabBevel,
+      geo.wallThickness,
+      geo.engraveDepth,
+      geo.embossHeight,
+      el('h2', {}, 'Glyph edges'),
       slider('geometry', 'bevelSize', 'Bevel size', 0, 0.05, 0.001),
       slider('geometry', 'bevelThickness', 'Bevel thickness', 0, 0.08, 0.001),
       slider('geometry', 'bevelSegments', 'Bevel segments', 1, 8, 1),
@@ -239,6 +278,11 @@ export function buildPanel(root: HTMLElement, actions: PanelActions) {
   /** Call on state change to sync parts not covered by refreshControls. */
   return (changed: Set<keyof State>) => {
     if (changed.has('icon')) picker.sync();
+    if (changed.has('geometry')) {
+      const mode = state.geometry.mode;
+      for (const [key, row] of Object.entries(geo)) row.hidden = !visibleIn[key as keyof typeof geo].includes(mode);
+      modeHint.textContent = modes.find((m) => m.key === mode)?.hint ?? '';
+    }
     if (changed.has('export')) {
       const e = state.export;
       scaleSelect.value = String(e.scale);

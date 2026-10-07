@@ -1,14 +1,37 @@
 {
-  "icon": { "name": "browser", "weight": "fill" },
+  "icon": {
+    "name": "browser",
+    "weight": "fill"
+  },
   "geometry": {
+    "mode": "solid",
     "depth": 0.5,
     "bevelSize": 0.025,
     "bevelThickness": 0.025,
     "bevelSegments": 2,
-    "curveSegments": 24
+    "curveSegments": 24,
+    "glyphScale": 0.62,
+    "cornerRadius": 0.32,
+    "slabDepth": 0.6,
+    "slabBevel": 0.03,
+    "engraveDepth": 0.08,
+    "embossHeight": 0.08,
+    "wallThickness": 0.12
   },
-  "camera": { "yaw": -28, "pitch": -18, "roll": -6, "perspective": 30, "locked": false },
-  "material": { "preset": "chrome", "tint": "#ffffff", "roughness": 0.16, "clearcoat": 1, "anisotropy": 0 },
+  "camera": {
+    "yaw": -28,
+    "pitch": -18,
+    "roll": -6,
+    "perspective": 30,
+    "locked": false
+  },
+  "material": {
+    "preset": "chrome",
+    "tint": "#ffffff",
+    "roughness": 0.16,
+    "clearcoat": 1,
+    "anisotropy": 0
+  },
   "lighting": {
     "preset": "studio",
     "rotation": 0,
@@ -17,7 +40,18 @@
     "exposure": 1,
     "toneMapping": "agx"
   },
-  "grain": { "amount": 0.08, "size": 1, "seed": 1 },
-  "export": { "aspect": "1:1", "scale": 2, "width": 2048, "height": 2048 },
-  "preview": { "backdrop": "light" }
+  "grain": {
+    "amount": 0.08,
+    "size": 1,
+    "seed": 1
+  },
+  "export": {
+    "aspect": "1:1",
+    "scale": 2,
+    "width": 2048,
+    "height": 2048
+  },
+  "preview": {
+    "backdrop": "light"
+  }
 }
