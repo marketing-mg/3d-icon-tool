@@ -1,0 +1,45 @@
+:root {
+  --panel-bg: #18181a;
+  --panel-fg: #e6e6e6;
+  --muted: #8a8a8f;
+  --line: #2c2c30;
+  --accent: #c9c9cf;
+  font: 12px/1.4 ui-sans-serif, system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
+}
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--panel-bg); }
+body { display: flex; }
+#viewport { flex: 1; position: relative; min-width: 0; }
+#viewport[data-backdrop='light'] { background: #e9e8e4; }
+#viewport[data-backdrop='dark'] { background: #232325; }
+#viewport[data-backdrop='checker'] {
+  background: repeating-conic-gradient(#cfcfcf 0 25%, #f2f2f2 0 50%) 0 0 / 20px 20px;
+}
+#app { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+#app:active { cursor: grabbing; }
+#panel {
+  width: 300px; flex: none; overflow-y: auto; color: var(--panel-fg);
+  border-left: 1px solid var(--line); padding: 12px 14px 24px; box-sizing: border-box;
+}
+h1 { font-size: 13px; font-weight: 600; margin: 2px 0 12px; letter-spacing: 0.02em; }
+.group { border-top: 1px solid var(--line); padding: 8px 0; }
+.group summary { cursor: pointer; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
+.row { display: grid; grid-template-columns: 96px 1fr 52px; gap: 6px; align-items: center; margin: 4px 0; }
+.row > span { color: var(--muted); }
+.row select, .row input[type='color'] { grid-column: 2 / 4; }
+.row.check { grid-template-columns: auto 1fr; }
+.row input[type='range'] { width: 100%; accent-color: var(--accent); }
+.num, select { background: #222226; color: var(--panel-fg); border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px; font: inherit; }
+input[type='color'] { height: 22px; border: 1px solid var(--line); background: none; padding: 0; }
+.buttons { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+button {
+  background: #26262a; color: var(--panel-fg); border: 1px solid var(--line); border-radius: 4px;
+  padding: 4px 8px; font: inherit; cursor: pointer;
+}
+button:hover { background: #303035; }
+.warn { color: #e0b060; margin: 4px 0; }
+@media (max-width: 720px) {
+  body { flex-direction: column; }
+  #viewport { flex: 1 1 55%; }
+  #panel { width: 100%; flex: 1 1 45%; border-left: 0; border-top: 1px solid var(--line); }
+}

@@ -1,0 +1,22 @@
+{
+  "icon": { "key": "/samples/fill/browser-fill.svg" },
+  "geometry": {
+    "depth": 0.5,
+    "bevelSize": 0.025,
+    "bevelThickness": 0.025,
+    "bevelSegments": 2,
+    "curveSegments": 24
+  },
+  "camera": { "yaw": -28, "pitch": -18, "roll": -6, "perspective": 30, "locked": false },
+  "material": { "preset": "chrome", "tint": "#ffffff", "roughness": 0.16, "clearcoat": 1, "anisotropy": 0 },
+  "lighting": {
+    "preset": "studio",
+    "rotation": 0,
+    "intensity": 1,
+    "contrast": 1,
+    "exposure": 1,
+    "toneMapping": "agx"
+  },
+  "grain": { "amount": 0.08, "size": 1, "seed": 1 },
+  "preview": { "backdrop": "light" }
+}
