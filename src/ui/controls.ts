@@ -21,8 +21,14 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
-export function group(title: string, ...children: Node[]) {
-  return el('details', { open: true, class: 'group' }, el('summary', {}, title), ...children);
+/** Collapsible section. */
+export function group(title: string, open: boolean, ...children: Node[]) {
+  return el('details', { open, class: 'group' }, el('summary', {}, title), ...children);
+}
+
+/** Always-open section with a plain heading. */
+export function section(title: string, ...children: Node[]) {
+  return el('section', { class: 'group' }, el('div', { class: 'section-title' }, title), ...children);
 }
 
 export function slider<S extends Section>(

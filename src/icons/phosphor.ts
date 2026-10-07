@@ -1,7 +1,11 @@
 import type { IconEntry } from '@phosphor-icons/core';
 import type { Weight } from '../state';
 
-export const weights: Weight[] = ['thin', 'light', 'regular', 'bold', 'fill', 'duotone'];
+export const weights: Weight[] = ['light', 'regular', 'bold', 'fill'];
+
+/** In-house icons drawn on Phosphor's grid (see scripts/make-brand-icons.mjs). Listed first in the picker. */
+const brandIcons: IconInfo[] = [{ name: 'monograph', haystack: 'monograph logo brand mark' }];
+const isBrand = (name: string) => brandIcons.some((i) => i.name === name);
 
 export interface IconInfo {
   name: string;
@@ -13,12 +17,13 @@ let catalog: Promise<IconInfo[]> | null = null;
 
 /** The Phosphor catalog (~1.5k entries with tags). Loaded on first use, kept out of the main bundle. */
 export function getCatalog() {
-  catalog ??= import('@phosphor-icons/core').then(({ icons }) =>
-    (icons as readonly IconEntry[]).map((i) => ({
+  catalog ??= import('@phosphor-icons/core').then(({ icons }) => [
+    ...brandIcons,
+    ...(icons as readonly IconEntry[]).map((i) => ({
       name: i.name,
       haystack: [i.name, ...i.tags, ...i.categories, i.alias?.name ?? ''].join(' ').toLowerCase(),
     })),
-  );
+  ]);
   return catalog;
 }
 
@@ -30,7 +35,7 @@ export async function search(query: string, limit = 120): Promise<IconInfo[]> {
   const score = (i: IconInfo) => {
     if (!terms.every((t) => i.haystack.includes(t))) return -1;
     const q = terms.join('-');
-    return i.name.startsWith(q) ? 3 : i.name.includes(q) ? 2 : 1;
+    return isBrand(i.name) ? 4 : i.name.startsWith(q) ? 3 : i.name.includes(q) ? 2 : 1;
   };
   return all
     .map((i) => [i, score(i)] as const)
@@ -44,7 +49,7 @@ export const fileName = (name: string, weight: Weight) =>
   weight === 'regular' ? `${name}.svg` : `${name}-${weight}.svg`;
 
 export const iconUrl = (name: string, weight: Weight) =>
-  `${import.meta.env.BASE_URL}phosphor/${weight}/${fileName(name, weight)}`;
+  `${import.meta.env.BASE_URL}${isBrand(name) ? 'brand-icons' : 'phosphor'}/${weight}/${fileName(name, weight)}`;
 
 const svgCache = new Map<string, Promise<string>>();
 

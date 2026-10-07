@@ -8,7 +8,7 @@ interface PickerOptions {
 }
 
 export function buildPicker({ onBatchToggle }: PickerOptions) {
-  const input = el('input', { type: 'search', placeholder: 'Search 1,512 Phosphor icons…', class: 'search' });
+  const input = el('input', { type: 'search', placeholder: 'Search Monograph + 1,512 Phosphor icons…', class: 'search' });
   const weightBar = el('div', { class: 'segmented' });
   const grid = el('div', { class: 'icon-grid' });
   const recent = el('div', { class: 'icon-strip' });

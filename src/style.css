@@ -26,9 +26,13 @@ body { display: flex; }
   width: 300px; flex: none; overflow-y: auto; color: var(--panel-fg);
   border-left: 1px solid var(--line); padding: 12px 14px 24px; box-sizing: border-box;
 }
-h1 { font-size: 13px; font-weight: 600; margin: 2px 0 12px; letter-spacing: 0.02em; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 10px; }
+h1 { font-size: 13px; font-weight: 600; margin: 0; letter-spacing: 0.02em; }
+.reset { padding: 3px 8px; font-size: 11px; }
 .group { border-top: 1px solid var(--line); padding: 8px 0; }
-.group summary { cursor: pointer; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
+.group summary, .section-title { cursor: pointer; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
+.section-title { cursor: default; }
+.group:not([open]) summary { margin-bottom: 0; }
 .row { display: grid; grid-template-columns: 96px 1fr 52px; gap: 6px; align-items: center; margin: 4px 0; }
 .row > span { color: var(--muted); }
 .row select, .row input[type='color'] { grid-column: 2 / 4; }

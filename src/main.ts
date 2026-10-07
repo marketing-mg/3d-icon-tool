@@ -97,7 +97,7 @@ const syncPanel = buildPanel(document.querySelector<HTMLElement>('#panel')!, {
     }
     progress(items.length);
     const stamp = new Date().toISOString().slice(0, 10);
-    download(await zipFiles(files), `metal-icons-${stamp}.zip`);
+    download(await zipFiles(files), `monograph-icons-${stamp}.zip`);
   },
   async copyLink() {
     await navigator.clipboard.writeText(`${location.origin}${location.pathname}#${encodeHash(state)}`);
@@ -107,7 +107,7 @@ const syncPanel = buildPanel(document.querySelector<HTMLElement>('#panel')!, {
   },
   downloadJson() {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-    download(blob, `metal-icon-settings-${state.icon.name}.json`);
+    download(blob, `monograph-icon-settings-${state.icon.name}.json`);
   },
   async importJson(file) {
     let parsed: unknown;

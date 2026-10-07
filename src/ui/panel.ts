@@ -4,7 +4,7 @@ import { lightingPresets } from '../scene/environment';
 import { materialPresets } from '../scene/materials';
 import { sampleIcons, type IconRef } from '../icons/phosphor';
 import { modes } from '../geometry';
-import { buttons, checkbox, color, el, group, refreshControls, select, slider } from './controls';
+import { buttons, checkbox, color, el, group, refreshControls, section, select, slider } from './controls';
 import { buildPicker } from './picker';
 
 export interface PanelActions {
@@ -135,85 +135,14 @@ export function buildPanel(root: HTMLElement, actions: PanelActions) {
   const heightRow = slider('export', 'height', 'Height (px)', 64, 8192, 1);
   const sizeLabel = el('p', { class: 'muted' });
 
+  const reset = el('button', { type: 'button', class: 'reset', title: 'Reset every setting to the defaults in brand.json' }, 'Reset');
+  reset.addEventListener('click', () => (replaceState(brandState()), refreshControls(), say('Reset to defaults.')));
+
   root.append(
-    el('h1', {}, 'Metal Icon Studio'),
-    group('Icon', picker.root, el('p', { class: 'warn', id: 'icon-warning', hidden: true })),
-    group(
-      'Geometry',
-      select(
-        'geometry',
-        'mode',
-        'Mode',
-        modes.map((m) => [m.key, m.label]),
-      ),
-      modeHint,
-      geo.depth,
-      geo.slabDepth,
-      geo.glyphScale,
-      geo.cornerRadius,
-      geo.slabBevel,
-      geo.wallThickness,
-      geo.engraveDepth,
-      geo.embossHeight,
-      el('h2', {}, 'Glyph edges'),
-      slider('geometry', 'bevelSize', 'Bevel size', 0, 0.05, 0.001),
-      slider('geometry', 'bevelThickness', 'Bevel thickness', 0, 0.08, 0.001),
-      slider('geometry', 'bevelSegments', 'Bevel segments', 1, 8, 1),
-      slider('geometry', 'curveSegments', 'Curve segments', 4, 64, 1),
-    ),
-    group(
-      'Camera',
-      checkbox('camera', 'locked', 'Lock to brand angle', (on) => {
-        cameraSliders.hidden = on;
-        if (on) {
-          Object.assign(state.camera, brandState().camera, { locked: true });
-          touch('camera');
-        }
-      }),
-      cameraSliders,
-    ),
-    group(
-      'Material',
-      select(
-        'material',
-        'preset',
-        'Preset',
-        Object.entries(materialPresets).map(([k, p]) => [k, p.label]),
-        (k) => {
-          const { label: _label, ...params } = materialPresets[k];
-          Object.assign(state.material, params);
-        },
-      ),
-      color('material', 'tint', 'Tint'),
-      slider('material', 'roughness', 'Roughness', 0, 1, 0.01),
-      slider('material', 'clearcoat', 'Clearcoat', 0, 1, 0.01),
-      slider('material', 'anisotropy', 'Anisotropy', 0, 1, 0.01),
-    ),
-    group(
-      'Lighting',
-      select(
-        'lighting',
-        'preset',
-        'Preset',
-        Object.entries(lightingPresets).map(([k, p]) => [k, p.label]),
-      ),
-      slider('lighting', 'rotation', 'Env rotation', -180, 180, 1),
-      slider('lighting', 'intensity', 'Intensity', 0, 3, 0.01),
-      slider('lighting', 'contrast', 'Contrast', 0, 1, 0.01),
-      slider('lighting', 'exposure', 'Exposure', 0.1, 3, 0.01),
-      select('lighting', 'toneMapping', 'Tone mapping', [
-        ['agx', 'AgX'],
-        ['aces', 'ACES Filmic'],
-      ]),
-    ),
-    group(
-      'Grain',
-      slider('grain', 'amount', 'Amount', 0, 0.4, 0.005),
-      slider('grain', 'size', 'Size (px)', 1, 4, 0.1),
-      slider('grain', 'seed', 'Seed', 1, 999, 1),
-    ),
+    el('header', { class: 'panel-head' }, el('h1', {}, 'Monograph Icon Studio'), reset),
     group(
       'Export',
+      true,
       select('export', 'aspect', 'Aspect', [
         ['1:1', 'Square'],
         ['3:2', '3:2'],
@@ -243,7 +172,90 @@ export function buildPanel(root: HTMLElement, actions: PanelActions) {
       ]),
       el('div', { class: 'buttons' }, zipButton),
     ),
+    group('Icon', true, picker.root, el('p', { class: 'warn', id: 'icon-warning', hidden: true })),
     group(
+      'Material',
+      false,
+      select(
+        'material',
+        'preset',
+        'Preset',
+        Object.entries(materialPresets).map(([k, p]) => [k, p.label]),
+        (k) => {
+          const { label: _label, lighting, grain, ...params } = materialPresets[k];
+          Object.assign(state.material, params);
+          if (lighting) Object.assign(state.lighting, lighting);
+          if (grain) Object.assign(state.grain, grain);
+          touch('lighting', 'grain');
+        },
+      ),
+      color('material', 'tint', 'Tint'),
+      slider('material', 'roughness', 'Roughness', 0, 1, 0.01),
+      slider('material', 'clearcoat', 'Clearcoat', 0, 1, 0.01),
+      slider('material', 'anisotropy', 'Anisotropy', 0, 1, 0.01),
+    ),
+    group(
+      'Geometry',
+      false,
+      select(
+        'geometry',
+        'mode',
+        'Mode',
+        modes.map((m) => [m.key, m.label]),
+      ),
+      modeHint,
+      geo.depth,
+      geo.slabDepth,
+      geo.glyphScale,
+      geo.cornerRadius,
+      geo.slabBevel,
+      geo.wallThickness,
+      geo.engraveDepth,
+      geo.embossHeight,
+      el('h2', {}, 'Glyph edges'),
+      slider('geometry', 'bevelSize', 'Bevel size', 0, 0.05, 0.001),
+      slider('geometry', 'bevelThickness', 'Bevel thickness', 0, 0.08, 0.001),
+      slider('geometry', 'bevelSegments', 'Bevel segments', 1, 8, 1),
+      slider('geometry', 'curveSegments', 'Curve segments', 4, 64, 1),
+    ),
+    group(
+      'Camera',
+      false,
+      checkbox('camera', 'locked', 'Lock to brand angle', (on) => {
+        cameraSliders.hidden = on;
+        if (on) {
+          Object.assign(state.camera, brandState().camera, { locked: true });
+          touch('camera');
+        }
+      }),
+      cameraSliders,
+    ),
+    group(
+      'Lighting',
+      false,
+      select(
+        'lighting',
+        'preset',
+        'Preset',
+        Object.entries(lightingPresets).map(([k, p]) => [k, p.label]),
+      ),
+      slider('lighting', 'rotation', 'Env rotation', -180, 180, 1),
+      slider('lighting', 'intensity', 'Intensity', 0, 3, 0.01),
+      slider('lighting', 'contrast', 'Contrast', 0, 1, 0.01),
+      slider('lighting', 'exposure', 'Exposure', 0.1, 3, 0.01),
+      select('lighting', 'toneMapping', 'Tone mapping', [
+        ['agx', 'AgX'],
+        ['aces', 'ACES Filmic'],
+      ]),
+    ),
+    group(
+      'Grain',
+      false,
+      slider('grain', 'amount', 'Amount', 0, 0.4, 0.005),
+      slider('grain', 'size', 'Size (px)', 1, 4, 0.1),
+      slider('grain', 'seed', 'Seed', 1, 999, 1),
+    ),
+    section(
       'Settings',
       buttons([
         ['Copy share link', run('Link copied.', actions.copyLink)],
@@ -251,9 +263,8 @@ export function buildPanel(root: HTMLElement, actions: PanelActions) {
         ['Download JSON', run('', actions.downloadJson)],
         ['Import JSON…', () => fileInput.click()],
       ]),
-      buttons([['Reset to brand', () => (replaceState(brandState()), refreshControls(), say('Reset to brand.'))]]),
     ),
-    group(
+    section(
       'Preview',
       select('preview', 'backdrop', 'Backdrop', [
         ['light', 'Light'],
