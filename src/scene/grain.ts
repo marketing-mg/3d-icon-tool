@@ -4,7 +4,8 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 /**
  * Monochrome film grain, applied after tone mapping in display space.
  * Deterministic: noise depends only on pixel coordinate, grain size and seed.
- * Scaled by alpha so transparent areas stay clean.
+ * Also un-premultiplies: MSAA resolves edges against the transparent clear color, which leaves
+ * premultiplied color. The canvas is premultipliedAlpha:false, so without this edges get dark fringes.
  */
 export function createGrainPass() {
   return new ShaderPass({
@@ -38,6 +39,8 @@ export function createGrainPass() {
 
       void main() {
         vec4 c = texture2D(tDiffuse, vUv);
+        if (c.a <= 0.0) { gl_FragColor = vec4(0.0); return; }
+        c.rgb /= c.a;
         uvec2 cell = uvec2(floor(vUv * resolution / max(size, 1.0)));
         // Sum of two uniforms gives a softer, film-like triangular distribution in [-1, 1].
         float a = float(hash(uvec3(cell, uint(seed))) & 0xffffu) / 65535.0;

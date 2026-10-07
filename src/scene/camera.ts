@@ -39,7 +39,9 @@ export class CameraRig {
     this.isOrtho = c.perspective < 1;
     const fov = Math.max(c.perspective, 1);
     // Move the camera so the framed size stays constant as FOV changes.
-    const dist = this.isOrtho ? 20 : FRAME_RADIUS / Math.sin((fov * DEG) / 2);
+    // In portrait frames the width is the tight side, so grow the vertical radius to keep it in view.
+    const r = FRAME_RADIUS / Math.min(this.aspect, 1);
+    const dist = this.isOrtho ? 20 : r / Math.sin((fov * DEG) / 2);
 
     const yaw = -c.yaw * DEG;
     const pitch = c.pitch * DEG;
@@ -52,7 +54,7 @@ export class CameraRig {
 
     this.persp.fov = fov;
     this.persp.aspect = this.aspect;
-    const h = FRAME_RADIUS;
+    const h = r;
     this.ortho.left = -h * this.aspect;
     this.ortho.right = h * this.aspect;
     this.ortho.top = h;

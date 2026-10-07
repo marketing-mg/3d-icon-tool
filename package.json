@@ -4,11 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/copy-phosphor.mjs",
     "dev": "vite",
+    "prebuild": "node scripts/copy-phosphor.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@phosphor-icons/core": "^2.1.1",
+    "fflate": "^0.8.3",
     "three": "^0.186.1"
   },
   "devDependencies": {

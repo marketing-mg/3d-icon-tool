@@ -45,20 +45,50 @@ export class Stage {
     this.composer.addPass(this.grain);
   }
 
+  private camera: State['camera'] | null = null;
+
+  /** Size the drawing buffer to the canvas's CSS size (preview). */
   resize() {
     const { clientWidth: w, clientHeight: h } = this.canvas;
     if (!w || !h) return;
+    this.setBufferSize(w, h, Math.min(window.devicePixelRatio, 2), Math.min(window.devicePixelRatio, 2));
+  }
+
+  private setBufferSize(w: number, h: number, pixelRatio: number, grainScale: number) {
+    this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(w, h, false);
-    this.composer.setPixelRatio(this.renderer.getPixelRatio());
+    this.composer.setPixelRatio(pixelRatio);
     this.composer.setSize(w, h);
-    const pr = this.renderer.getPixelRatio();
-    this.grain.uniforms.resolution.value.set(w * pr, h * pr);
-    this.grain.uniforms.size.value = this.grainSize * pr;
+    this.grain.uniforms.resolution.value.set(w * pixelRatio, h * pixelRatio);
+    this.grain.uniforms.size.value = this.grainSize * grainScale;
     this.rig.aspect = w / h;
+    if (this.camera) this.rig.update(this.camera);
+  }
+
+  /**
+   * Render one frame at exactly w×h pixels and capture it as a PNG.
+   * The canvas bitmap is copied synchronously by toBlob, so the preview size is restored before
+   * the next frame and never flashes. grainScale keeps grain the same relative size at any resolution.
+   */
+  snapshot(w: number, h: number, grainScale: number): Promise<Blob> {
+    this.setBufferSize(w, h, 1, grainScale);
+    this.composer.render();
+    const blob = new Promise<Blob>((resolve, reject) =>
+      this.canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('PNG encode failed'))), 'image/png'),
+    );
+    this.resize();
+    return blob;
+  }
+
+  /** Largest square buffer this GPU can render to. */
+  get maxSize() {
+    const gl = this.renderer.getContext();
+    return Math.min(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE), this.renderer.capabilities.maxTextureSize, 8192);
   }
 
   apply(s: State, changed: Set<keyof State>) {
     if (changed.has('camera')) {
+      this.camera = s.camera;
       this.rig.update(s.camera);
       this.renderPass.camera = this.rig.active;
     }
@@ -73,7 +103,7 @@ export class Stage {
       this.grain.uniforms.amount.value = s.grain.amount;
       this.grain.uniforms.seed.value = s.grain.seed;
       this.grainSize = s.grain.size;
-      this.grain.uniforms.size.value = s.grain.size * this.renderer.getPixelRatio();
+      this.resize();
     }
   }
 
