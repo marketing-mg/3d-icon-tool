@@ -26,17 +26,38 @@ export function buildPicker({ onBatchToggle }: PickerOptions) {
     return b;
   };
 
+  // All matches are browsable; tiles are added in pages as the grid scrolls so the full
+  // catalog doesn't create 1.5k images up front.
+  const PAGE = 96;
+  const count = el('p', { class: 'hint' });
+  let results: { name: string }[] = [];
+  let shown = 0;
+
+  function renderMore() {
+    const next = results.slice(shown, shown + PAGE);
+    shown += next.length;
+    grid.append(...next.map((r) => tile({ name: r.name, weight: state.icon.weight })));
+    markCurrent();
+  }
+
+  grid.addEventListener('scroll', () => {
+    if (shown < results.length && grid.scrollTop + grid.clientHeight > grid.scrollHeight - 120) renderMore();
+  });
+
   let searchId = 0;
   async function renderGrid() {
     const id = ++searchId;
-    const results = await search(input.value);
+    const found = await search(input.value);
     if (id !== searchId) return;
-    grid.replaceChildren(
-      ...(results.length
-        ? results.map((r) => tile({ name: r.name, weight: state.icon.weight }))
-        : [el('p', { class: 'muted' }, 'No icons match.')]),
-    );
-    markCurrent();
+    results = found;
+    shown = 0;
+    grid.scrollTop = 0;
+    grid.replaceChildren();
+    count.textContent = input.value.trim()
+      ? `${found.length} match${found.length === 1 ? '' : 'es'}`
+      : `${found.length} icons`;
+    if (found.length) renderMore();
+    else grid.append(el('p', { class: 'muted' }, 'No icons match.'));
   }
 
   function renderRecent() {
@@ -83,6 +104,7 @@ export function buildPicker({ onBatchToggle }: PickerOptions) {
     current,
     input,
     weightBar,
+    count,
     grid,
     el('p', { class: 'hint' }, 'Shift-click an icon to add it to the batch.'),
     recent,

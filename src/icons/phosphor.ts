@@ -27,10 +27,10 @@ export function getCatalog() {
   return catalog;
 }
 
-export async function search(query: string, limit = 120): Promise<IconInfo[]> {
+export async function search(query: string): Promise<IconInfo[]> {
   const all = await getCatalog();
   const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-  if (!terms.length) return all.slice(0, limit);
+  if (!terms.length) return all;
   // Name matches first (prefix before substring), then tag matches.
   const score = (i: IconInfo) => {
     if (!terms.every((t) => i.haystack.includes(t))) return -1;
@@ -41,7 +41,6 @@ export async function search(query: string, limit = 120): Promise<IconInfo[]> {
     .map((i) => [i, score(i)] as const)
     .filter(([, s]) => s > 0)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, limit)
     .map(([i]) => i);
 }
 
