@@ -1,4 +1,7 @@
 {
+  "look": {
+    "style": "metal"
+  },
   "icon": {
     "name": "monograph",
     "weight": "fill"
@@ -53,5 +56,22 @@
   },
   "preview": {
     "backdrop": "light"
+  },
+  "blueprint": {
+    "preset": "purple",
+    "background": "#5840e0",
+    "line": "#f4f2ff",
+    "accent": "#ffffff",
+    "lineWidth": 1.5,
+    "hiddenLines": true,
+    "hiddenOpacity": 0.45,
+    "transparent": false,
+    "corners": true,
+    "centers": true,
+    "markerSize": 9,
+    "grid": true,
+    "gridDivisions": 6,
+    "construction": true,
+    "perspective": 12
   }
 }

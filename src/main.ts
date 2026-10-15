@@ -53,9 +53,9 @@ function rebuildGeometry(immediate = false) {
     return;
   }
   if (!glyph) return;
-  const next = buildGeometry(glyph, state.geometry);
-  stage.mesh.geometry.dispose();
-  stage.mesh.geometry = next;
+  const prev = stage.model;
+  stage.setModel(buildGeometry(glyph, state.geometry));
+  prev?.geometry.dispose();
 }
 
 /** Letterbox the canvas to the export aspect so the preview frame matches the PNG. */
@@ -74,7 +74,8 @@ const currentSize = () => exportSize(state.export, stage.maxSize);
 const syncPanel = buildPanel(document.querySelector<HTMLElement>('#panel')!, {
   exportSizeLabel: () => {
     const { w, h, clamped } = currentSize();
-    return `${w} × ${h} px, transparent PNG${clamped ? ' (capped at GPU max)' : ''}`;
+    const transparent = state.look.style === 'metal' || state.blueprint.transparent;
+    return `${w} × ${h} px, ${transparent ? 'transparent' : 'opaque'} PNG${clamped ? ' (capped at GPU max)' : ''}`;
   },
   async exportPng() {
     const { w, h, grainScale } = currentSize();
@@ -83,17 +84,17 @@ const syncPanel = buildPanel(document.querySelector<HTMLElement>('#panel')!, {
   async exportBatch(items, progress) {
     const { w, h, grainScale } = currentSize();
     const files: { name: string; blob: Blob }[] = [];
-    const preview = stage.mesh.geometry;
+    const preview = stage.model;
     try {
       for (const [i, ref] of items.entries()) {
         progress(i);
-        const g = await loadGlyph(ref);
-        stage.mesh.geometry = buildGeometry(g, state.geometry);
+        const built = buildGeometry(await loadGlyph(ref), state.geometry);
+        stage.setModel(built);
         files.push({ name: pngName(ref.name, ref.weight, state), blob: await stage.snapshot(w, h, grainScale) });
-        stage.mesh.geometry.dispose();
+        built.geometry.dispose();
       }
     } finally {
-      stage.mesh.geometry = preview;
+      if (preview) stage.setModel(preview);
     }
     progress(items.length);
     const stamp = new Date().toISOString().slice(0, 10);
@@ -127,6 +128,8 @@ onChange((changed) => {
   else if (changed.has('geometry')) rebuildGeometry();
   if (changed.has('preview')) viewport.dataset.backdrop = state.preview.backdrop;
   if (changed.has('export')) fitCanvas();
+  if (changed.has('look') || changed.has('blueprint'))
+    viewport.dataset.look = state.look.style === 'blueprint' && !state.blueprint.transparent ? 'opaque' : '';
   stage.apply(state, changed);
   syncPanel(changed);
   // Keep the URL a live share link, without spamming history.

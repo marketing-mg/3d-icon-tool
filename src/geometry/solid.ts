@@ -41,10 +41,35 @@ export function extrudeGlyph(glyph: Glyph, p: ExtrudeParams, scale = 1): BufferG
   return geo;
 }
 
-/** Solid mode: the glyph as a single beveled solid, centered on the origin. */
-export function buildSolid(glyph: Glyph, g: State['geometry']): BufferGeometry {
+/** Bevel thickness extrudeGlyph actually uses for a given total depth. */
+export const effectiveBevel = (p: Pick<ExtrudeParams, 'bevelSize' | 'bevelThickness'>, depth: number) =>
+  p.bevelSize > 0 ? Math.min(p.bevelThickness, depth * 0.45) : 0;
+
+/** Solid mode: the glyph as a single beveled solid, front face at z = 0. */
+export function buildSolid(glyph: Glyph, g: State['geometry']): RawBuild {
   // Solid depth historically excludes the bevel thickness; keep that so saved settings render the same.
-  const geo = extrudeGlyph(glyph, { ...g, depth: g.depth + 2 * Math.min(g.bevelThickness, g.depth) });
-  geo.center();
-  return geo;
+  const depth = g.depth + 2 * Math.min(g.bevelThickness, g.depth);
+  const geo = extrudeGlyph(glyph, { ...g, depth });
+  return {
+    geometry: geo,
+    parts: [{ geo }],
+    planes: [],
+    glyphScale: 1,
+    glyphFront: 0,
+    cornerZ: -effectiveBevel(g, depth),
+  };
+}
+
+/** A builder's output before centering, plus what the blueprint line drawing needs. */
+export interface RawBuild {
+  geometry: BufferGeometry;
+  /** Source solids for edge extraction (pre-CSG), optionally clipped to a z range. */
+  parts: { geo: BufferGeometry; zMin?: number; zMax?: number }[];
+  /** z planes where the glyph meets a slab face; its outline is drawn there. */
+  planes: number[];
+  glyphScale: number;
+  /** z of the glyph's front plane (center marks). */
+  glyphFront: number;
+  /** z where the glyph's side walls meet the front bevel (corner markers). */
+  cornerZ: number;
 }

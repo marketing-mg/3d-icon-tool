@@ -6,7 +6,10 @@ export type Backdrop = 'light' | 'dark' | 'checker';
 export type Weight = 'regular' | 'thin' | 'light' | 'bold' | 'fill' | 'duotone';
 export type Aspect = '1:1' | '3:2' | '16:9' | 'custom';
 
+export type Look = 'metal' | 'blueprint';
+
 export interface State {
+  look: { style: Look };
   icon: { name: string; weight: Weight };
   geometry: {
     mode: 'solid' | 'engrave' | 'emboss' | 'outline';
@@ -38,9 +41,33 @@ export interface State {
   /** scale 1/2/4 multiplies a 1024px base edge; scale 0 = custom width/height. */
   export: { aspect: Aspect; scale: number; width: number; height: number };
   preview: { backdrop: Backdrop };
+  /** Technical-drawing style. Shares icon, geometry, camera angles and export with metal. */
+  blueprint: {
+    preset: string;
+    background: string;
+    line: string;
+    accent: string;
+    /** Pixels at 1× (1024px long edge); scales with export size. */
+    lineWidth: number;
+    hiddenLines: boolean;
+    hiddenOpacity: number;
+    transparent: boolean;
+    corners: boolean;
+    centers: boolean;
+    markerSize: number;
+    grid: boolean;
+    gridDivisions: number;
+    construction: boolean;
+    /** Blueprint keeps its own FOV: drawings read best near-orthographic. */
+    perspective: number;
+  };
 }
 
 export type Section = keyof State;
+
+/** The camera actually used: blueprint swaps in its own perspective. */
+export const effectiveCamera = (s: State): State['camera'] =>
+  s.look.style === 'blueprint' ? { ...s.camera, perspective: s.blueprint.perspective } : s.camera;
 
 export const brandState = (): State => structuredClone(brand) as State;
 

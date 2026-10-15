@@ -1,7 +1,10 @@
 import {
   ACESFilmicToneMapping,
   AgXToneMapping,
+  Color,
   HalfFloatType,
+  NoToneMapping,
+  type ToneMapping,
   Mesh,
   Scene,
   WebGLRenderer,
@@ -14,7 +17,9 @@ import { CameraRig } from './camera';
 import { StudioEnvironment } from './environment';
 import { applyMaterial, createMaterial } from './materials';
 import { createGrainPass } from './grain';
-import type { State } from '../state';
+import { BlueprintScene } from './blueprint';
+import { effectiveCamera, type Look, type State } from '../state';
+import type { Built } from '../geometry';
 
 export class Stage {
   readonly renderer: WebGLRenderer;
@@ -27,6 +32,15 @@ export class Stage {
   private grain = createGrainPass();
   private env: StudioEnvironment;
   private grainSize = 1;
+  private grainAmount = 0;
+  private toneMapping: ToneMapping = AgXToneMapping;
+
+  readonly blueprint = new BlueprintScene();
+  private bpComposer: EffectComposer;
+  private bpGridPass: RenderPass;
+  private bpObjectPass: RenderPass;
+  private look: Look = 'metal';
+  private built: Built | null = null;
 
   constructor(readonly canvas: HTMLCanvasElement) {
     this.renderer = new WebGLRenderer({ canvas, antialias: false, alpha: true, premultipliedAlpha: false });
@@ -43,6 +57,33 @@ export class Stage {
     this.composer.addPass(this.renderPass);
     this.composer.addPass(new OutputPass());
     this.composer.addPass(this.grain);
+
+    // Blueprint: flat grid pass (clears to the background), then the object pass on top.
+    // The grain pass is shared; it also un-premultiplies the edges for the transparent export.
+    const bpTarget = new WebGLRenderTarget(1, 1, { type: HalfFloatType, samples: 4 });
+    this.bpComposer = new EffectComposer(this.renderer, bpTarget);
+    this.bpGridPass = new RenderPass(this.blueprint.gridScene, this.blueprint.gridCamera, null, new Color(0, 0, 0), 0);
+    this.bpObjectPass = new RenderPass(this.blueprint.scene, this.rig.active);
+    this.bpObjectPass.clear = false;
+    this.bpComposer.addPass(this.bpGridPass);
+    this.bpComposer.addPass(this.bpObjectPass);
+    this.bpComposer.addPass(new OutputPass());
+    this.bpComposer.addPass(this.grain);
+  }
+
+  /** Swap in a new model (preview or batch export). */
+  setModel(built: Built) {
+    this.built = built;
+    this.mesh.geometry = built.geometry;
+    if (this.look === 'blueprint') this.blueprint.setModel(built.geometry, built.lines());
+  }
+
+  get model() {
+    return this.built;
+  }
+
+  private get activeComposer() {
+    return this.look === 'blueprint' ? this.bpComposer : this.composer;
   }
 
   private camera: State['camera'] | null = null;
@@ -57,12 +98,23 @@ export class Stage {
   private setBufferSize(w: number, h: number, pixelRatio: number, grainScale: number) {
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(w, h, false);
-    this.composer.setPixelRatio(pixelRatio);
-    this.composer.setSize(w, h);
+    for (const c of [this.composer, this.bpComposer]) {
+      c.setPixelRatio(pixelRatio);
+      c.setSize(w, h);
+    }
+    this.blueprint.setSize(w * pixelRatio, h * pixelRatio);
     this.grain.uniforms.resolution.value.set(w * pixelRatio, h * pixelRatio);
     this.grain.uniforms.size.value = this.grainSize * grainScale;
     this.rig.aspect = w / h;
-    if (this.camera) this.rig.update(this.camera);
+    if (this.camera) this.updateCamera(this.camera);
+  }
+
+  private updateCamera(c: State['camera']) {
+    this.camera = c;
+    this.rig.update(c);
+    this.renderPass.camera = this.rig.active;
+    this.bpObjectPass.camera = this.rig.active;
+    this.blueprint.invalidateView();
   }
 
   /**
@@ -72,7 +124,7 @@ export class Stage {
    */
   snapshot(w: number, h: number, grainScale: number): Promise<Blob> {
     this.setBufferSize(w, h, 1, grainScale);
-    this.composer.render();
+    this.render();
     const blob = new Promise<Blob>((resolve, reject) =>
       this.canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('PNG encode failed'))), 'image/png'),
     );
@@ -87,20 +139,23 @@ export class Stage {
   }
 
   apply(s: State, changed: Set<keyof State>) {
-    if (changed.has('camera')) {
-      this.camera = s.camera;
-      this.rig.update(s.camera);
-      this.renderPass.camera = this.rig.active;
+    if (changed.has('look')) {
+      this.look = s.look.style;
+      if (this.look === 'blueprint' && this.built) this.blueprint.setModel(this.built.geometry, this.built.lines());
+    }
+    if (changed.has('camera') || changed.has('look') || changed.has('blueprint')) this.updateCamera(effectiveCamera(s));
+    if (changed.has('blueprint')) {
+      this.blueprint.setStyle(s.blueprint);
     }
     if (changed.has('material')) applyMaterial(this.material, s.material);
     if (changed.has('lighting')) {
       this.scene.environment = this.env.get(s.lighting);
       this.scene.environmentIntensity = s.lighting.intensity;
-      this.renderer.toneMapping = s.lighting.toneMapping === 'aces' ? ACESFilmicToneMapping : AgXToneMapping;
+      this.toneMapping = s.lighting.toneMapping === 'aces' ? ACESFilmicToneMapping : AgXToneMapping;
       this.renderer.toneMappingExposure = s.lighting.exposure;
     }
     if (changed.has('grain')) {
-      this.grain.uniforms.amount.value = s.grain.amount;
+      this.grainAmount = s.grain.amount;
       this.grain.uniforms.seed.value = s.grain.seed;
       this.grainSize = s.grain.size;
       this.resize();
@@ -108,6 +163,11 @@ export class Stage {
   }
 
   render() {
-    this.composer.render();
+    const bp = this.look === 'blueprint';
+    // Blueprint colors are exact brand values: no tone mapping, no grain.
+    this.renderer.toneMapping = bp ? NoToneMapping : this.toneMapping;
+    this.grain.uniforms.amount.value = bp ? 0 : this.grainAmount;
+    if (bp) this.blueprint.prepare(this.rig.active);
+    this.activeComposer.render();
   }
 }

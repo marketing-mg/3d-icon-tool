@@ -1,7 +1,7 @@
 import { BufferGeometry, ExtrudeGeometry, Path, Shape, Vector3 } from 'three';
 import { mergeGeometries, toCreasedNormals } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Brush, Evaluator, SUBTRACTION } from 'three-bvh-csg';
-import { extrudeGlyph } from './solid';
+import { effectiveBevel, extrudeGlyph, type RawBuild } from './solid';
 import type { Glyph } from './svgToShapes';
 import type { State } from '../state';
 
@@ -91,7 +91,7 @@ function slab(g: State['geometry']) {
 const glyphParams = (g: State['geometry'], depth: number) => ({ ...g, depth });
 
 /** Engraved: the glyph cut into the slab face with a CSG subtraction. */
-export function buildEngraved(glyph: Glyph, g: State['geometry']): BufferGeometry {
+export function buildEngraved(glyph: Glyph, g: State['geometry']): RawBuild {
   const base = slab(g);
   // Cutter: the glyph, from just above the face down to the groove floor. Its back bevel
   // chamfers the groove floor; the excess above the face keeps the cut clean.
@@ -120,28 +120,51 @@ export function buildEngraved(glyph: Glyph, g: State['geometry']): BufferGeometr
   a.updateMatrixWorld();
   b.updateMatrixWorld();
   const result = evaluator.evaluate(a, b, SUBTRACTION).geometry;
-  base.dispose();
-  cutter.dispose();
-  return finish(result);
+  // Line drawing uses the clean pre-CSG solids: CSG output has T-junctions that read as stray edges.
+  return {
+    geometry: result,
+    parts: [{ geo: base }, { geo: cutter, zMax: 0 }],
+    planes: [0],
+    glyphScale: g.glyphScale,
+    glyphFront: 0,
+    cornerZ: 0,
+  };
 }
 
 /** Embossed: the glyph raised off the slab face. No CSG: the glyph's base just sinks into the slab. */
-export function buildEmbossed(glyph: Glyph, g: State['geometry']): BufferGeometry {
-  const sink = 0.01;
-  const raised = extrudeGlyph(glyph, glyphParams(g, g.embossHeight + sink), g.glyphScale);
+export function buildEmbossed(glyph: Glyph, g: State['geometry']): RawBuild {
+  // Sink past the bottom bevel so the glyph meets the slab face with a straight wall.
+  const sink = g.bevelThickness + 0.005;
+  const depth = g.embossHeight + sink;
+  const raised = extrudeGlyph(glyph, glyphParams(g, depth), g.glyphScale);
   raised.translate(0, 0, g.embossHeight);
-  return finish(merge([slab(g), raised]));
+  const base = slab(g);
+  return {
+    geometry: merge([base.clone(), raised.clone()]),
+    parts: [{ geo: base }, { geo: raised, zMin: 0 }],
+    planes: [0],
+    glyphScale: g.glyphScale,
+    glyphFront: g.embossHeight,
+    cornerZ: g.embossHeight - effectiveBevel(g, depth),
+  };
 }
 
 /** Outline: a hollow rounded frame with the glyph standing inside it, flush with the frame's front. */
-export function buildOutline(glyph: Glyph, g: State['geometry']): BufferGeometry {
+export function buildOutline(glyph: Glyph, g: State['geometry']): RawBuild {
   const radius = g.cornerRadius * HALF;
   const wall = Math.min(g.wallThickness, HALF * 0.4);
   const frame = roundedRect(new Shape(), HALF, radius);
   frame.holes.push(roundedRect(new Path(), HALF - wall, Math.max(radius - wall, 0.0001), true));
   const ring = smoothSides(extrudeShape(frame, g.slabDepth, g.slabBevel, g));
   const inner = extrudeGlyph(glyph, glyphParams(g, g.slabDepth), g.glyphScale);
-  return finish(merge([ring, inner]));
+  return {
+    geometry: merge([ring.clone(), inner.clone()]),
+    parts: [{ geo: ring }, { geo: inner }],
+    planes: [],
+    glyphScale: g.glyphScale,
+    glyphFront: 0,
+    cornerZ: -effectiveBevel(g, g.slabDepth),
+  };
 }
 
 function merge(parts: BufferGeometry[]) {
@@ -157,9 +180,4 @@ function merge(parts: BufferGeometry[]) {
   const merged = mergeGeometries(clean, false)!;
   parts.forEach((p) => p.dispose());
   return merged;
-}
-
-function finish(geo: BufferGeometry) {
-  geo.center();
-  return geo;
 }

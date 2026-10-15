@@ -2,6 +2,7 @@ import { brandState, replaceState, state, touch, type State } from '../state';
 import { cameraPresets } from '../scene/camera';
 import { lightingPresets } from '../scene/environment';
 import { materialPresets } from '../scene/materials';
+import { blueprintPresets } from '../scene/blueprint';
 import { sampleIcons, type IconRef } from '../icons/phosphor';
 import { modes } from '../geometry';
 import { buttons, checkbox, color, el, group, refreshControls, section, select, slider } from './controls';
@@ -103,17 +104,33 @@ export function buildPanel(root: HTMLElement, actions: PanelActions) {
       Object.values(cameraPresets).map((p) => [
         p.label,
         () => {
-          Object.assign(state.camera, { yaw: p.yaw, pitch: p.pitch, roll: p.roll, perspective: p.perspective });
+          Object.assign(state.camera, { yaw: p.yaw, pitch: p.pitch, roll: p.roll });
+          // Presets set the FOV of whichever style is showing.
+          if (state.look.style === 'blueprint') state.blueprint.perspective = p.perspective;
+          else state.camera.perspective = p.perspective;
           refreshControls();
-          touch('camera');
+          touch('camera', 'blueprint');
         },
       ]),
     ),
     slider('camera', 'yaw', 'Yaw', -90, 90, 0.5),
     slider('camera', 'pitch', 'Pitch', -89, 89, 0.5),
     slider('camera', 'roll', 'Roll', -45, 45, 0.5),
-    slider('camera', 'perspective', 'Perspective (FOV, 0 = ortho)', 0, 70, 1),
+    lookOnly('metal', slider('camera', 'perspective', 'Perspective (FOV, 0 = ortho)', 0, 70, 1)),
+    lookOnly('blueprint', slider('blueprint', 'perspective', 'Perspective (FOV, 0 = ortho)', 0, 70, 1)),
   );
+
+  // --- Style toggle ---
+  const lookToggle = el('div', { class: 'segmented look-toggle' });
+  for (const [value, label] of [['metal', 'Metal'], ['blueprint', 'Blueprint']] as const) {
+    const b = el('button', { type: 'button' }, label);
+    b.dataset.look = value;
+    b.addEventListener('click', () => {
+      state.look.style = value;
+      touch('look');
+    });
+    lookToggle.append(b);
+  }
 
   // --- Export size ---
   const scaleSelect = el(
@@ -140,6 +157,7 @@ export function buildPanel(root: HTMLElement, actions: PanelActions) {
 
   root.append(
     el('header', { class: 'panel-head' }, el('h1', {}, 'Monograph Icon Studio'), reset),
+    lookToggle,
     group(
       'Export',
       true,
@@ -173,7 +191,31 @@ export function buildPanel(root: HTMLElement, actions: PanelActions) {
       el('div', { class: 'buttons' }, zipButton),
     ),
     group('Icon', true, picker.root, el('p', { class: 'warn', id: 'icon-warning', hidden: true })),
-    group(
+    lookOnly(
+      'blueprint',
+      group(
+        'Drawing',
+        false,
+        select(
+          'blueprint',
+          'preset',
+          'Preset',
+          Object.entries(blueprintPresets).map(([k, p]) => [k, p.label]),
+          (k) => {
+            const { label: _label, ...colors } = blueprintPresets[k];
+            Object.assign(state.blueprint, colors);
+          },
+        ),
+        color('blueprint', 'background', 'Background'),
+        color('blueprint', 'line', 'Lines'),
+        color('blueprint', 'accent', 'Accent'),
+        slider('blueprint', 'lineWidth', 'Line width (px)', 0.5, 4, 0.1),
+        checkbox('blueprint', 'hiddenLines', 'Dashed hidden lines'),
+        slider('blueprint', 'hiddenOpacity', 'Hidden opacity', 0.1, 1, 0.01),
+        checkbox('blueprint', 'transparent', 'Transparent background'),
+      ),
+    ),
+    lookOnly('metal', group(
       'Material',
       false,
       select(
@@ -193,7 +235,7 @@ export function buildPanel(root: HTMLElement, actions: PanelActions) {
       slider('material', 'roughness', 'Roughness', 0, 1, 0.01),
       slider('material', 'clearcoat', 'Clearcoat', 0, 1, 0.01),
       slider('material', 'anisotropy', 'Anisotropy', 0, 1, 0.01),
-    ),
+    )),
     group(
       'Geometry',
       false,
@@ -230,7 +272,7 @@ export function buildPanel(root: HTMLElement, actions: PanelActions) {
       }),
       cameraSliders,
     ),
-    group(
+    lookOnly('metal', group(
       'Lighting',
       false,
       select(
@@ -247,13 +289,33 @@ export function buildPanel(root: HTMLElement, actions: PanelActions) {
         ['agx', 'AgX'],
         ['aces', 'ACES Filmic'],
       ]),
-    ),
-    group(
+    )),
+    lookOnly('metal', group(
       'Grain',
       false,
       slider('grain', 'amount', 'Amount', 0, 0.4, 0.005),
       slider('grain', 'size', 'Size (px)', 1, 4, 0.1),
       slider('grain', 'seed', 'Seed', 1, 999, 1),
+    )),
+    lookOnly(
+      'blueprint',
+      group(
+        'Markers',
+        false,
+        checkbox('blueprint', 'corners', 'Corner squares'),
+        checkbox('blueprint', 'centers', 'Center marks on circles'),
+        slider('blueprint', 'markerSize', 'Marker size (px)', 3, 16, 0.5),
+      ),
+    ),
+    lookOnly(
+      'blueprint',
+      group(
+        'Grid',
+        false,
+        checkbox('blueprint', 'grid', 'Background grid'),
+        slider('blueprint', 'gridDivisions', 'Grid divisions', 2, 16, 1),
+        checkbox('blueprint', 'construction', 'Construction lines'),
+      ),
     ),
     section(
       'Settings',
@@ -286,15 +348,27 @@ export function buildPanel(root: HTMLElement, actions: PanelActions) {
   renderBatch();
   refreshControls();
 
+  function lookOnly<T extends HTMLElement>(look: 'metal' | 'blueprint', node: T): T {
+    node.dataset.look = look;
+    return node;
+  }
+
   /** Call on state change to sync parts not covered by refreshControls. */
   return (changed: Set<keyof State>) => {
     if (changed.has('icon')) picker.sync();
+    if (changed.has('look')) {
+      const look = state.look.style;
+      root.querySelectorAll<HTMLElement>('[data-look]').forEach((n) => {
+        if (n.parentElement === lookToggle) n.classList.toggle('on', n.dataset.look === look);
+        else n.hidden = n.dataset.look !== look;
+      });
+    }
     if (changed.has('geometry')) {
       const mode = state.geometry.mode;
       for (const [key, row] of Object.entries(geo)) row.hidden = !visibleIn[key as keyof typeof geo].includes(mode);
       modeHint.textContent = modes.find((m) => m.key === mode)?.hint ?? '';
     }
-    if (changed.has('export')) {
+    if (changed.has('export') || changed.has('look') || changed.has('blueprint')) {
       const e = state.export;
       scaleSelect.value = String(e.scale);
       scaleRow.hidden = e.aspect === 'custom';
