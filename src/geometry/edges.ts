@@ -90,7 +90,20 @@ export class EdgeModel {
       const dot = normals[f1] * normals[f2] + normals[f1 + 1] * normals[f2 + 1] + normals[f1 + 2] * normals[f2 + 2];
       const clipped = clipZ(pa, pb, zMin, zMax);
       if (!clipped) continue;
-      if (dot < cosCrease || faces.length > 2) this.creases.push(...clipped[0], ...clipped[1]);
+      const crease = dot < cosCrease || faces.length > 2;
+      // Skip the seams across a chamfer at each corner: at icon scale they read as stray ticks.
+      // Seams join two bevel faces and run front-to-back (z changes); the chamfer's own lines run
+      // along it at constant z and are kept. Parts are extruded along z, so caps have |nz| ≈ 1,
+      // walls |nz| ≈ 0, bevels in between.
+      if (
+        crease &&
+        faces.length === 2 &&
+        Math.abs(pa[2] - pb[2]) > 1e-6 &&
+        isBevel(normals[f1 + 2]) &&
+        isBevel(normals[f2 + 2])
+      )
+        continue;
+      if (crease) this.creases.push(...clipped[0], ...clipped[1]);
       else
         smooth.push(
           ...clipped[0], ...clipped[1],
@@ -122,6 +135,8 @@ export class EdgeModel {
     return out;
   }
 }
+
+const isBevel = (nz: number) => Math.abs(nz) > 0.05 && Math.abs(nz) < 0.995;
 
 function clipZ(a: number[], b: number[], zMin: number, zMax: number): [number[], number[]] | null {
   const eps = 1e-6;
