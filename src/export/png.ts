@@ -32,5 +32,6 @@ export function download(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export const pngName = (name: string, weight: string, s: State) =>
-  `${name}-${weight}-${s.look.style === 'blueprint' ? `blueprint-${s.blueprint.preset}` : s.material.preset}.png`;
+export const fileBase = (name: string, weight: string, s: State) =>
+  `${name}-${weight}-${s.look.style === 'blueprint' ? `blueprint-${s.blueprint.preset}` : s.material.preset}`;
+export const pngName = (name: string, weight: string, s: State) => `${fileBase(name, weight, s)}.png`;

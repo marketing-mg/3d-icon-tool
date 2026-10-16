@@ -30,6 +30,18 @@ function markerGeometry(centers: Float32Array) {
   return geo;
 }
 
+/** Background grid in frame units: y spans [-1, 1], x spans [-aspect, aspect]. xyz pairs. */
+export function gridSegments(aspect: number, divisions: number) {
+  const step = 2 / Math.max(2, Math.round(divisions));
+  const out: number[] = [];
+  for (let y = -1 + step; y < 1 - 1e-6; y += step) out.push(-aspect, y, 0, aspect, y, 0);
+  for (let x = 0; x < aspect; x += step) {
+    out.push(x, -1, 0, x, 1, 0);
+    if (x > 0) out.push(-x, -1, 0, -x, 1, 0);
+  }
+  return out;
+}
+
 export const blueprintPresets: Record<string, { label: string; background: string; line: string; accent: string }> = {
   purple: { label: 'Purple field', background: '#5840e0', line: '#f4f2ff', accent: '#ffffff' },
   paper: { label: 'White paper', background: '#f4f3ef', line: '#111111', accent: '#5840e0' },
@@ -257,7 +269,7 @@ export class BlueprintScene {
     if (this.hiddenLines.visible) this.hiddenLines.computeLineDistances();
   }
 
-  private centerMarkSegments() {
+  centerMarkSegments() {
     // Drafting center mark: a small cross, a gap, then long arms past the circle.
     const out: number[] = [];
     for (const { x, y, z, r } of this.model?.centers ?? []) {
@@ -271,7 +283,7 @@ export class BlueprintScene {
     return out;
   }
 
-  private constructionSegments() {
+  constructionSegments() {
     if (!this.model) return [];
     const { min, max } = this.model.bounds;
     const z = this.model.frontZ;
@@ -290,15 +302,6 @@ export class BlueprintScene {
   }
 
   private gridSegments() {
-    if (!this.style) return [];
-    const n = Math.max(2, Math.round(this.style.gridDivisions));
-    const step = 2 / n;
-    const out: number[] = [];
-    for (let y = -1 + step; y < 1 - 1e-6; y += step) out.push(-this.aspect, y, 0, this.aspect, y, 0);
-    for (let x = 0; x < this.aspect; x += step) {
-      out.push(x, -1, 0, x, 1, 0);
-      if (x > 0) out.push(-x, -1, 0, -x, 1, 0);
-    }
-    return out;
+    return this.style ? gridSegments(this.aspect, this.style.gridDivisions) : [];
   }
 }

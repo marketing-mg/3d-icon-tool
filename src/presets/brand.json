@@ -52,7 +52,8 @@
     "aspect": "1:1",
     "scale": 2,
     "width": 2048,
-    "height": 2048
+    "height": 2048,
+    "batchFormat": "png"
   },
   "preview": {
     "backdrop": "light"
@@ -69,7 +70,7 @@
     "corners": true,
     "centers": true,
     "markerSize": 9,
-    "grid": true,
+    "grid": false,
     "gridDivisions": 6,
     "construction": true,
     "perspective": 12

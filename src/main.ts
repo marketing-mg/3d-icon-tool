@@ -6,7 +6,7 @@ import { parseSvg, type Glyph } from './geometry/svgToShapes';
 import { loadSvg, pushRecent, type IconRef } from './icons/phosphor';
 import { buildPanel } from './ui/panel';
 import { refreshControls } from './ui/controls';
-import { aspectRatio, download, exportSize, pngName } from './export/png';
+import { aspectRatio, download, exportSize, fileBase, pngName } from './export/png';
 import { zipFiles } from './export/batch';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#app')!;
@@ -81,8 +81,14 @@ const syncPanel = buildPanel(document.querySelector<HTMLElement>('#panel')!, {
     const { w, h, grainScale } = currentSize();
     download(await stage.snapshot(w, h, grainScale), pngName(state.icon.name, state.icon.weight, state));
   },
+  async exportSvg() {
+    const { w, h, grainScale } = currentSize();
+    const svg = await stage.svg(w, h, grainScale, state);
+    download(new Blob([svg], { type: 'image/svg+xml' }), `${fileBase(state.icon.name, state.icon.weight, state)}.svg`);
+  },
   async exportBatch(items, progress) {
     const { w, h, grainScale } = currentSize();
+    const format = state.export.batchFormat;
     const files: { name: string; blob: Blob }[] = [];
     const preview = stage.model;
     try {
@@ -90,7 +96,12 @@ const syncPanel = buildPanel(document.querySelector<HTMLElement>('#panel')!, {
         progress(i);
         const built = buildGeometry(await loadGlyph(ref), state.geometry);
         stage.setModel(built);
-        files.push({ name: pngName(ref.name, ref.weight, state), blob: await stage.snapshot(w, h, grainScale) });
+        const base = fileBase(ref.name, ref.weight, state);
+        if (format !== 'svg') files.push({ name: `${base}.png`, blob: await stage.snapshot(w, h, grainScale) });
+        if (format !== 'png') {
+          const svg = await stage.svg(w, h, grainScale, state);
+          files.push({ name: `${base}.svg`, blob: new Blob([svg], { type: 'image/svg+xml' }) });
+        }
         built.geometry.dispose();
       }
     } finally {

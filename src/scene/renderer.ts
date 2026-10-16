@@ -20,6 +20,7 @@ import { createGrainPass } from './grain';
 import { BlueprintScene } from './blueprint';
 import { effectiveCamera, type Look, type State } from '../state';
 import type { Built } from '../geometry';
+import { blueprintSvg } from '../export/svg';
 
 export class Stage {
   readonly renderer: WebGLRenderer;
@@ -130,6 +131,41 @@ export class Stage {
     );
     this.resize();
     return blob;
+  }
+
+  /**
+   * SVG of the current view at w×h. Blueprint: true vector linework. Metal: the full-quality
+   * render embedded as an image (reflections and grain can't be vector).
+   */
+  async svg(w: number, h: number, grainScale: number, s: State): Promise<string> {
+    if (this.look === 'blueprint' && this.built && this.camera) {
+      this.rig.aspect = w / h;
+      this.rig.update(this.camera);
+      const camera = this.rig.active;
+      camera.updateMatrixWorld();
+      try {
+        return blueprintSvg({
+          renderer: this.renderer,
+          camera,
+          geometry: this.built.geometry,
+          model: this.built.lines(),
+          scene: this.blueprint,
+          style: s.blueprint,
+          width: w,
+          height: h,
+        });
+      } finally {
+        this.resize();
+      }
+    }
+    const png = await this.snapshot(w, h, grainScale);
+    const bytes = new Uint8Array(await png.arrayBuffer());
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return (
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">` +
+      `<image width="${w}" height="${h}" href="data:image/png;base64,${btoa(bin)}"/></svg>\n`
+    );
   }
 
   /** Largest square buffer this GPU can render to. */

@@ -10,6 +10,7 @@ import { buildPicker } from './picker';
 
 export interface PanelActions {
   exportPng: () => Promise<void>;
+  exportSvg: () => Promise<void>;
   exportBatch: (items: IconRef[], progress: (done: number) => void) => Promise<void>;
   exportSizeLabel: () => string;
   copyLink: () => Promise<void>;
@@ -120,6 +121,15 @@ export function buildPanel(root: HTMLElement, actions: PanelActions) {
     lookOnly('blueprint', slider('blueprint', 'perspective', 'Perspective (FOV, 0 = ortho)', 0, 70, 1)),
   );
 
+  // --- Download buttons ---
+  const downloadButton = (label: string, onClick: () => void) => {
+    const b = el('button', { type: 'button' }, label);
+    b.addEventListener('click', onClick);
+    return b;
+  };
+  const svgButton = downloadButton('Download SVG', run('SVG downloaded.', actions.exportSvg));
+  const svgHint = el('p', { class: 'hint' });
+
   // --- Style toggle ---
   const lookToggle = el('div', { class: 'segmented look-toggle' });
   for (const [value, label] of [['metal', 'Metal'], ['blueprint', 'Blueprint']] as const) {
@@ -171,7 +181,13 @@ export function buildPanel(root: HTMLElement, actions: PanelActions) {
       widthRow,
       heightRow,
       sizeLabel,
-      buttons([['Download PNG', run('PNG downloaded.', actions.exportPng)]]),
+      el(
+        'div',
+        { class: 'buttons' },
+        downloadButton('Download PNG', run('PNG downloaded.', actions.exportPng)),
+        svgButton,
+      ),
+      svgHint,
       el('h2', {}, 'Batch'),
       batchList,
       buttons([
@@ -187,6 +203,11 @@ export function buildPanel(root: HTMLElement, actions: PanelActions) {
           },
         ],
         ['Clear', () => ((batch.length = 0), renderBatch())],
+      ]),
+      select('export', 'batchFormat', 'Zip contains', [
+        ['png', 'PNG'],
+        ['svg', 'SVG'],
+        ['both', 'PNG + SVG'],
       ]),
       el('div', { class: 'buttons' }, zipButton),
     ),
@@ -375,6 +396,11 @@ export function buildPanel(root: HTMLElement, actions: PanelActions) {
       widthRow.hidden = !(e.aspect === 'custom' || e.scale === 0);
       heightRow.hidden = e.aspect !== 'custom';
       sizeLabel.textContent = actions.exportSizeLabel();
+      const vector = state.look.style === 'blueprint';
+      svgButton.textContent = vector ? 'Download SVG' : 'Download SVG (image)';
+      svgHint.textContent = vector
+        ? 'SVG is true vector linework: editable paths, scales to any size.'
+        : 'Metal can’t be vector: the SVG wraps the full-quality render.';
     }
   };
 }

@@ -39,7 +39,7 @@ export interface State {
   };
   grain: { amount: number; size: number; seed: number };
   /** scale 1/2/4 multiplies a 1024px base edge; scale 0 = custom width/height. */
-  export: { aspect: Aspect; scale: number; width: number; height: number };
+  export: { aspect: Aspect; scale: number; width: number; height: number; batchFormat: 'png' | 'svg' | 'both' };
   preview: { backdrop: Backdrop };
   /** Technical-drawing style. Shares icon, geometry, camera angles and export with metal. */
   blueprint: {
